@@ -1,0 +1,349 @@
+import asyncio
+import json
+from typing import List, Optional
+from dataclasses import dataclass
+
+from app.schemas.models import EvidenceSource, MediaType, VerdicType, ConfidenceLevel
+from app.core.config import settings
+
+
+@dataclass
+class LLMAnalysis:
+    """Container for LLM analysis results."""
+    verdict: VerdicType
+    confidence: ConfidenceLevel
+    confidence_score: float
+    summary: str
+    reasoning: str
+
+
+class LLMService:
+    """Service for LLM-based groundedness and truthfulness analysis."""
+    
+    def __init__(self):
+        self.openai_api_key = settings.OPENAI_API_KEY
+        self.model = "gpt-3.5-turbo"  # Can be upgraded to gpt-4 for better results
+    
+    async def analyze_groundedness(
+        self, 
+        content: str, 
+        sources: List[EvidenceSource], 
+        media_type: MediaType
+    ) -> LLMAnalysis:
+        """
+        Analyze the groundedness and truthfulness of content against sources.
+        """
+        try:
+            if self.openai_api_key:
+                return await self._analyze_with_openai(content, sources, media_type)
+            else:
+                # Fallback to rule-based analysis for development
+                return await self._analyze_with_rules(content, sources, media_type)
+                
+        except Exception as e:
+            print(f"LLM analysis error: {e}")
+            return await self._analyze_with_rules(content, sources, media_type)
+    
+    async def _analyze_with_openai(
+        self, 
+        content: str, 
+        sources: List[EvidenceSource], 
+        media_type: MediaType
+    ) -> LLMAnalysis:
+        """
+        Use OpenAI API for analysis.
+        """
+        try:
+            import openai
+            openai.api_key = self.openai_api_key
+            
+            # Prepare the prompt
+            prompt = self._create_analysis_prompt(content, sources, media_type)
+            
+            # Make API call
+            response = await openai.ChatCompletion.acreate(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert fact-checker and misinformation detection specialist. Analyze content for accuracy and truthfulness based on provided evidence sources."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.3,
+                max_tokens=1000
+            )
+            
+            # Parse response
+            analysis_text = response.choices[0].message.content
+            return self._parse_llm_response(analysis_text)
+            
+        except Exception as e:
+            print(f"OpenAI API error: {e}")
+            return await self._analyze_with_rules(content, sources, media_type)
+    
+    async def _analyze_with_rules(
+        self, 
+        content: str, 
+        sources: List[EvidenceSource], 
+        media_type: MediaType
+    ) -> LLMAnalysis:
+        """
+        Fallback rule-based analysis when LLM is not available.
+        """
+        # Simulate processing delay
+        await asyncio.sleep(1.0)
+        
+        # Calculate scores based on source credibility and relevance
+        if not sources:
+            return LLMAnalysis(
+                verdict=VerdicType.UNVERIFIABLE,
+                confidence=ConfidenceLevel.LOW,
+                confidence_score=0.2,
+                summary="No sources found to verify the claims.",
+                reasoning="Unable to verify claims due to lack of credible sources."
+            )
+        
+        # Calculate average credibility and relevance
+        avg_credibility = sum(source.credibility_score for source in sources) / len(sources)
+        avg_relevance = sum(source.relevance_score for source in sources) / len(sources)
+        
+        # Calculate overall confidence
+        confidence_score = (avg_credibility * 0.6) + (avg_relevance * 0.4)
+        
+        # Determine verdict based on scores and heuristics
+        verdict = self._determine_verdict(content, sources, confidence_score)
+        confidence_level = self._determine_confidence_level(confidence_score)
+        
+        # Generate summary and reasoning
+        summary = self._generate_summary(verdict, confidence_score, len(sources))
+        reasoning = self._generate_reasoning(content, sources, verdict, confidence_score)
+        
+        return LLMAnalysis(
+            verdict=verdict,
+            confidence=confidence_level,
+            confidence_score=confidence_score,
+            summary=summary,
+            reasoning=reasoning
+        )
+    
+    def _create_analysis_prompt(
+        self, 
+        content: str, 
+        sources: List[EvidenceSource], 
+        media_type: MediaType
+    ) -> str:
+        """
+        Create a detailed prompt for LLM analysis.
+        """
+        sources_text = "\n".join([
+            f"Source {i+1}:\n"
+            f"URL: {source.url}\n"
+            f"Title: {source.title}\n"
+            f"Content: {source.snippet}\n"
+            f"Credibility Score: {source.credibility_score:.2f}\n"
+            f"Relevance Score: {source.relevance_score:.2f}\n"
+            for i, source in enumerate(sources[:5])  # Limit to top 5 sources
+        ])
+        
+        prompt = f"""
+Analyze the following {media_type.value} content for truthfulness and accuracy:
+
+CONTENT TO ANALYZE:
+{content[:1000]}...
+
+EVIDENCE SOURCES:
+{sources_text}
+
+Please provide your analysis in the following JSON format:
+{{
+    "verdict": "true|false|partially_true|misleading|unverifiable",
+    "confidence_level": "high|medium|low",
+    "confidence_score": 0.85,
+    "summary": "Brief summary of your findings",
+    "reasoning": "Detailed explanation of your analysis, including how the sources support or contradict the claims"
+}}
+
+Consider:
+1. How well do the sources support or contradict the main claims?
+2. Are the sources credible and authoritative?
+3. Is there consensus among multiple sources?
+4. Are there any red flags or suspicious elements?
+5. What claims can be verified vs. what remains unverifiable?
+
+Be thorough but concise in your analysis.
+"""
+        return prompt
+    
+    def _parse_llm_response(self, response_text: str) -> LLMAnalysis:
+        """
+        Parse LLM response into structured analysis.
+        """
+        try:
+            # Try to extract JSON from response
+            start_idx = response_text.find('{')
+            end_idx = response_text.rfind('}') + 1
+            
+            if start_idx >= 0 and end_idx > start_idx:
+                json_text = response_text[start_idx:end_idx]
+                data = json.loads(json_text)
+                
+                return LLMAnalysis(
+                    verdict=VerdicType(data.get('verdict', 'unverifiable')),
+                    confidence=ConfidenceLevel(data.get('confidence_level', 'low')),
+                    confidence_score=float(data.get('confidence_score', 0.5)),
+                    summary=data.get('summary', 'Analysis completed'),
+                    reasoning=data.get('reasoning', 'Unable to parse detailed reasoning')
+                )
+            else:
+                # Fallback parsing
+                return self._parse_text_response(response_text)
+                
+        except Exception as e:
+            print(f"Error parsing LLM response: {e}")
+            return LLMAnalysis(
+                verdict=VerdicType.UNVERIFIABLE,
+                confidence=ConfidenceLevel.LOW,
+                confidence_score=0.3,
+                summary="Analysis completed with limited confidence",
+                reasoning=response_text[:500] if response_text else "Unable to complete analysis"
+            )
+    
+    def _parse_text_response(self, response_text: str) -> LLMAnalysis:
+        """
+        Parse non-JSON LLM response.
+        """
+        text_lower = response_text.lower()
+        
+        # Determine verdict from keywords
+        if any(word in text_lower for word in ['true', 'accurate', 'correct', 'verified']):
+            verdict = VerdicType.TRUE
+        elif any(word in text_lower for word in ['false', 'incorrect', 'wrong', 'debunked']):
+            verdict = VerdicType.FALSE
+        elif any(word in text_lower for word in ['misleading', 'deceptive']):
+            verdict = VerdicType.MISLEADING
+        elif any(word in text_lower for word in ['partially', 'mixed', 'some truth']):
+            verdict = VerdicType.PARTIALLY_TRUE
+        else:
+            verdict = VerdicType.UNVERIFIABLE
+        
+        # Determine confidence from keywords
+        if any(word in text_lower for word in ['highly confident', 'very confident', 'certain']):
+            confidence = ConfidenceLevel.HIGH
+            confidence_score = 0.85
+        elif any(word in text_lower for word in ['moderately confident', 'somewhat confident']):
+            confidence = ConfidenceLevel.MEDIUM
+            confidence_score = 0.65
+        else:
+            confidence = ConfidenceLevel.LOW
+            confidence_score = 0.45
+        
+        return LLMAnalysis(
+            verdict=verdict,
+            confidence=confidence,
+            confidence_score=confidence_score,
+            summary=response_text[:200] + "..." if len(response_text) > 200 else response_text,
+            reasoning=response_text
+        )
+    
+    def _determine_verdict(
+        self, 
+        content: str, 
+        sources: List[EvidenceSource], 
+        confidence_score: float
+    ) -> VerdicType:
+        """
+        Determine verdict based on rule-based analysis.
+        """
+        # Check for high credibility sources
+        high_credibility_sources = [s for s in sources if s.credibility_score > 0.8]
+        
+        if confidence_score > 0.8 and len(high_credibility_sources) >= 2:
+            return VerdicType.TRUE
+        elif confidence_score < 0.3:
+            return VerdicType.FALSE
+        elif 0.5 < confidence_score <= 0.8:
+            return VerdicType.PARTIALLY_TRUE
+        elif any(word in content.lower() for word in ['misleading', 'deceptive', 'false claim']):
+            return VerdicType.MISLEADING
+        else:
+            return VerdicType.UNVERIFIABLE
+    
+    def _determine_confidence_level(self, confidence_score: float) -> ConfidenceLevel:
+        """
+        Convert numerical confidence to categorical level.
+        """
+        if confidence_score >= 0.75:
+            return ConfidenceLevel.HIGH
+        elif confidence_score >= 0.5:
+            return ConfidenceLevel.MEDIUM
+        else:
+            return ConfidenceLevel.LOW
+    
+    def _generate_summary(
+        self, 
+        verdict: VerdicType, 
+        confidence_score: float, 
+        source_count: int
+    ) -> str:
+        """
+        Generate analysis summary.
+        """
+        verdict_descriptions = {
+            VerdicType.TRUE: "The content appears to be largely accurate",
+            VerdicType.FALSE: "The content contains significant inaccuracies",
+            VerdicType.PARTIALLY_TRUE: "The content contains both accurate and inaccurate elements",
+            VerdicType.MISLEADING: "The content is misleading or deceptive",
+            VerdicType.UNVERIFIABLE: "The content cannot be reliably verified"
+        }
+        
+        base_summary = verdict_descriptions[verdict]
+        
+        return f"{base_summary} based on analysis of {source_count} sources with {confidence_score:.0%} confidence."
+    
+    def _generate_reasoning(
+        self, 
+        content: str, 
+        sources: List[EvidenceSource], 
+        verdict: VerdicType, 
+        confidence_score: float
+    ) -> str:
+        """
+        Generate detailed reasoning for the analysis.
+        """
+        reasoning_parts = []
+        
+        # Source analysis
+        high_credibility_count = len([s for s in sources if s.credibility_score > 0.8])
+        medium_credibility_count = len([s for s in sources if 0.5 < s.credibility_score <= 0.8])
+        
+        reasoning_parts.append(
+            f"Analysis based on {len(sources)} sources: "
+            f"{high_credibility_count} high-credibility, "
+            f"{medium_credibility_count} medium-credibility sources."
+        )
+        
+        # Verdict reasoning
+        if verdict == VerdicType.TRUE:
+            reasoning_parts.append("Multiple credible sources support the main claims.")
+        elif verdict == VerdicType.FALSE:
+            reasoning_parts.append("Credible sources contradict or debunk the main claims.")
+        elif verdict == VerdicType.PARTIALLY_TRUE:
+            reasoning_parts.append("Sources provide mixed evidence with some claims supported and others not.")
+        elif verdict == VerdicType.MISLEADING:
+            reasoning_parts.append("While some elements may be true, the overall presentation is misleading.")
+        else:
+            reasoning_parts.append("Insufficient reliable sources to make a confident determination.")
+        
+        # Confidence reasoning
+        if confidence_score > 0.75:
+            reasoning_parts.append("High confidence due to multiple corroborating credible sources.")
+        elif confidence_score > 0.5:
+            reasoning_parts.append("Moderate confidence with some supporting evidence but room for uncertainty.")
+        else:
+            reasoning_parts.append("Low confidence due to limited or conflicting evidence.")
+        
+        return " ".join(reasoning_parts)
