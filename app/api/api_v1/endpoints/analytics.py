@@ -39,7 +39,7 @@ async def get_analytics_overview(
 @router.get("/trends")
 async def get_analytics_trends(
     days: int = Query(default=30, ge=1, le=365, description="Number of days for trends"),
-    granularity: str = Query(default="daily", regex="^(hourly|daily|weekly)$", description="Trend granularity"),
+    granularity: str = Query(default="daily", pattern="^(hourly|daily|weekly)$", description="Trend granularity"),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
     """
@@ -149,7 +149,7 @@ async def get_user_behavior_analytics(
 
 @router.get("/export")
 async def export_analytics_data(
-    format: str = Query(default="json", regex="^(json|csv)$", description="Export format"),
+    format: str = Query(default="json", pattern="^(json|csv)$", description="Export format"),
     days: int = Query(default=30, ge=1, le=365, description="Number of days to export"),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):

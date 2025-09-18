@@ -1,10 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 import uvicorn
 
 from app.api.api_v1.api import api_router
 from app.core.config import settings
+from app.utils.exceptions import (
+    http_exception_handler,
+    validation_exception_handler,
+    general_exception_handler,
+    veritrue_exception_handler,
+    VeriTrueAIException
+)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -24,6 +33,12 @@ app.add_middleware(
 
 # Mount static files for uploads
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# Add exception handlers
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(VeriTrueAIException, veritrue_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
