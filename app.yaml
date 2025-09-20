@@ -10,17 +10,13 @@ env_variables:
   PROJECT_NAME: VeriTrueAI2.0
   LOG_LEVEL: INFO
   
-  # Non-sensitive configuration
+  # Non-sensitive configuration only
   GEMINI_MODEL: gemini-pro
   GOOGLE_CLOUD_PROJECT_ID: veritrueai
   MAX_UPLOAD_SIZE: 50MB
   UPLOAD_DIR: /tmp/uploads
   SEARCH_ENGINE_ID: d3a39005958a34dac
   ACCESS_TOKEN_EXPIRE_MINUTES: 30
-
-# Sensitive data from Secret Manager
-beta_settings:
-  cloud_sql_instances: veritrueai:us-central1:veritrue-db
 
 automatic_scaling:
   min_instances: 1
