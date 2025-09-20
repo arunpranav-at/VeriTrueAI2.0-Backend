@@ -10,29 +10,17 @@ env_variables:
   PROJECT_NAME: VeriTrueAI2.0
   LOG_LEVEL: INFO
   
-  # Database Configuration (Cloud SQL)
-  DATABASE_URL: postgresql://username:password@/database_name?host=/cloudsql/project:region:instance
-  
-  # Redis Configuration (Memorystore)
-  REDIS_URL: redis://redis-instance-ip:6379/0
-  
-  # OpenAI Configuration
-  OPENAI_API_KEY: your_openai_api_key_here
-  
-  # Google Cloud Configuration
-  GOOGLE_CLOUD_PROJECT_ID: your_project_id
-  
-  # File Upload Configuration
+  # Non-sensitive configuration
+  GEMINI_MODEL: gemini-pro
+  GOOGLE_CLOUD_PROJECT_ID: veritrueai
   MAX_UPLOAD_SIZE: 50MB
   UPLOAD_DIR: /tmp/uploads
-  
-  # Web Search Configuration
-  SEARCH_API_KEY: your_search_api_key
-  SEARCH_ENGINE_ID: your_search_engine_id
-  
-  # Security
-  SECRET_KEY: your_production_secret_key_here
+  SEARCH_ENGINE_ID: d3a39005958a34dac
   ACCESS_TOKEN_EXPIRE_MINUTES: 30
+
+# Sensitive data from Secret Manager
+beta_settings:
+  cloud_sql_instances: veritrueai:us-central1:veritrue-db
 
 automatic_scaling:
   min_instances: 1

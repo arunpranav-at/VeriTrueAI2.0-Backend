@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from app.schemas.models import EvidenceSource, MediaType, VerdicType, ConfidenceLevel
 from app.core.config import settings
 
+# Gemini API client
+import google.generativeai as genai
+
 
 @dataclass
 class LLMAnalysis:
@@ -18,71 +21,56 @@ class LLMAnalysis:
 
 
 class LLMService:
-    """Service for LLM-based groundedness and truthfulness analysis."""
-    
+    """Service for LLM-based groundedness and truthfulness analysis using Gemini API."""
+
     def __init__(self):
-        self.openai_api_key = settings.OPENAI_API_KEY
-        self.model = "gpt-3.5-turbo"  # Can be upgraded to gpt-4 for better results
-    
+        self.gemini_api_key = getattr(settings, "GEMINI_API_KEY", None)
+        self.model_name = getattr(settings, "GEMINI_MODEL", "gemini-pro")
+
     async def analyze_groundedness(
-        self, 
-        content: str, 
-        sources: List[EvidenceSource], 
+        self,
+        content: str,
+        sources: List[EvidenceSource],
         media_type: MediaType
     ) -> LLMAnalysis:
         """
         Analyze the groundedness and truthfulness of content against sources.
         """
         try:
-            if self.openai_api_key:
-                return await self._analyze_with_openai(content, sources, media_type)
+            if self.gemini_api_key:
+                return await self._analyze_with_gemini(content, sources, media_type)
             else:
                 # Fallback to rule-based analysis for development
                 return await self._analyze_with_rules(content, sources, media_type)
-                
         except Exception as e:
             print(f"LLM analysis error: {e}")
             return await self._analyze_with_rules(content, sources, media_type)
-    
-    async def _analyze_with_openai(
-        self, 
-        content: str, 
-        sources: List[EvidenceSource], 
+
+    async def _analyze_with_gemini(
+        self,
+        content: str,
+        sources: List[EvidenceSource],
         media_type: MediaType
     ) -> LLMAnalysis:
         """
-        Use OpenAI API for analysis.
+        Use Gemini API for analysis.
         """
         try:
-            import openai
-            openai.api_key = self.openai_api_key
-            
-            # Prepare the prompt
+            # Gemini API is synchronous, so run in thread executor for async compatibility
+            import concurrent.futures
+            loop = asyncio.get_event_loop()
             prompt = self._create_analysis_prompt(content, sources, media_type)
-            
-            # Make API call
-            response = await openai.ChatCompletion.acreate(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert fact-checker and misinformation detection specialist. Analyze content for accuracy and truthfulness based on provided evidence sources."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.3,
-                max_tokens=1000
-            )
-            
-            # Parse response
-            analysis_text = response.choices[0].message.content
+
+            def gemini_call():
+                genai.configure(api_key=self.gemini_api_key)
+                model = genai.GenerativeModel(self.model_name)
+                response = model.generate_content(prompt)
+                return response.text
+
+            analysis_text = await loop.run_in_executor(None, gemini_call)
             return self._parse_llm_response(analysis_text)
-            
         except Exception as e:
-            print(f"OpenAI API error: {e}")
+            print(f"Gemini API error: {e}")
             return await self._analyze_with_rules(content, sources, media_type)
     
     async def _analyze_with_rules(
@@ -131,13 +119,13 @@ class LLMService:
         )
     
     def _create_analysis_prompt(
-        self, 
-        content: str, 
-        sources: List[EvidenceSource], 
+        self,
+        content: str,
+        sources: List[EvidenceSource],
         media_type: MediaType
     ) -> str:
         """
-        Create a detailed prompt for LLM analysis.
+        Create a detailed prompt for LLM analysis (Gemini).
         """
         sources_text = "\n".join([
             f"Source {i+1}:\n"
@@ -148,9 +136,9 @@ class LLMService:
             f"Relevance Score: {source.relevance_score:.2f}\n"
             for i, source in enumerate(sources[:5])  # Limit to top 5 sources
         ])
-        
+
         prompt = f"""
-Analyze the following {media_type.value} content for truthfulness and accuracy:
+You are an expert fact-checker and misinformation detection specialist. Analyze the following {media_type.value} content for truthfulness and accuracy based on the provided evidence sources.
 
 CONTENT TO ANALYZE:
 {content[:1000]}...

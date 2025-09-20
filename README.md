@@ -87,7 +87,8 @@ VeriTrueAI2.0 is an advanced AI-powered misinformation detection system that pro
 
 ### Docker Deployment
 
-```bash
+| `GEMINI_API_KEY` | Gemini API key for LLM | Required for AI analysis |
+| `GEMINI_MODEL` | Optional: Gemini model name (default: gemini-pro) | `gemini-pro` |
 # Build the image
 docker build -t veritrue-ai-backend .
 
