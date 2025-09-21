@@ -29,7 +29,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:3001", 
-        "https://veri-true-ai-2-0-frontend.vercel.app",
+        "https://veritrueai-frontend-o5oapa7v5q-uc.a.run.app",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],

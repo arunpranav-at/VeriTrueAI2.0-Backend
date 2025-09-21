@@ -51,7 +51,7 @@ gcloud app deploy app.yaml
 The backend will only accept requests from:
 - `http://localhost:3000` (local development)
 - `http://localhost:3001` (local development)
-- `https://veri-true-ai-2-0-frontend.vercel.app` (production frontend)
+- `https://veritrueai-frontend-o5oapa7v5q-uc.a.run.app` (production frontend)
 
 ## Testing Your Deployment
 
