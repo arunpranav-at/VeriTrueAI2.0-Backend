@@ -57,7 +57,7 @@ class Settings:
         
         # Web Search Configuration - Secure secrets from Secret Manager
         self.SEARCH_API_KEY: Optional[str] = self._get_secret_or_env("SEARCH_API_KEY")
-        self.SEARCH_ENGINE_ID: Optional[str] = os.getenv("SEARCH_ENGINE_ID")
+        self.SEARCH_ENGINE_ID: Optional[str] = self._get_secret_or_env("SEARCH_ENGINE_ID")
         
         # Security - Secure secret from Secret Manager
         self.SECRET_KEY: str = self._get_secret_or_env("SECRET_KEY") or "your-secret-key-change-this-in-production"
