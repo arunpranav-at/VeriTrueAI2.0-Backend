@@ -9,7 +9,10 @@ from app.core.config import settings
 
 
 class WebSearchService:
-    """Service for web search and source gathering."""
+    """
+    Service for web search and source gathering.
+    Updated: General web search with real results for LLM fact-checking.
+    """
     
     def __init__(self):
         self.search_api_key = settings.SEARCH_API_KEY
