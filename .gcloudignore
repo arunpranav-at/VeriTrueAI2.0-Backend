@@ -1,0 +1,122 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore, with the addition of
+# "#!include" directives (which insert the entries of the given .gitignore-style
+# file at that point).
+#
+# For more information, run:
+#   $ gcloud topic gcloudignore
+#
+.gcloudignore
+# If you would like to upload your .git directory, .gitignore file or files
+# from your .gitignore file, remove the corresponding line
+# below:
+.git
+.gitignore
+
+# Python pycache:
+__pycache__/
+# Ignored by the build system
+/setup.cfg
+
+# Additional exclusions to reduce file count
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Testing
+.coverage
+.pytest_cache/
+.tox/
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Development files
+.env
+.env.local
+.env.*.local
+deploy-*.ps1
+deploy-*.sh
+*.md
+docs/
+tests/
+test_*.py
+*_test.py
+
+# Temporary files
+tmp/
+temp/
+*.bak
+*.backup
+
+# Large files
+*.csv
+*.json
+*.sql
+*.dump
+
+# Keep uploads structure but not contents
+uploads/*
+!uploads/.gitkeep
+
+# Exclude service account keys and sensitive files
+*.json
+!app.yaml
+!package.json
+
+# Exclude local development tools
+deploy-*.ps1
+deploy-*.sh
+DEPLOY_GUIDE.md
+MIGRATION_SUMMARY.md
+AZURE_DEPLOYMENT.md
+
+# Exclude git and version control
+.git/
+.gitignore
+
+# Additional Python exclusions
+.mypy_cache/
+.dmypy.json
+dmypy.json

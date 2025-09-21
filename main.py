@@ -23,11 +23,17 @@ app = FastAPI(
 )
 
 # Set up CORS
-allow_origins=[
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
         "http://localhost:3000",
         "http://localhost:3001", 
-        "https://veri-true-ai-2-0-frontend.vercel.app",  # Remove trailing slash
+        "https://veri-true-ai-2-0-frontend.vercel.app",
     ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 # Mount static files for uploads
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

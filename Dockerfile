@@ -20,7 +20,11 @@ COPY . .
 RUN mkdir -p uploads
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
+
+# Set environment variables
+ENV PORT=8080
+ENV ENVIRONMENT=production
 
 # Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD exec uvicorn main:app --host 0.0.0.0 --port $PORT
