@@ -1,4 +1,3 @@
-# VeriTrueAI Backend - Fixed Google Search API with clean secrets (no newlines)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
